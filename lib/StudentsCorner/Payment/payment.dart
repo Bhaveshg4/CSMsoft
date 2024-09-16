@@ -14,7 +14,10 @@ class PaymentPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Payment'),
+        title: const Text(
+          'Payment',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: const Color(0xFF28313B),
       ),
       body: Container(

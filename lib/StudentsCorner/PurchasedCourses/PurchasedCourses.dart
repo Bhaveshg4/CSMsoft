@@ -17,9 +17,11 @@ class LatestCourse extends StatelessWidget {
   Widget build(BuildContext context) {
     // Dummy data for purchased courses
     final courses = [
-      PurchasedCourse('Course 1', 'Learn Flutter from scratch.'),
-      PurchasedCourse('Course 2', 'Master advanced Dart concepts.'),
-      PurchasedCourse('Course 3', 'Explore state management in Flutter.'),
+      PurchasedCourse(
+          'Learn संस्कृत', 'Master sanskrit language and know Indian Culture.'),
+      PurchasedCourse('Learn हिंदी', 'Know your mothertongue more accurately.'),
+      PurchasedCourse(
+          'Learn गणित', 'Learn maths to understand marvels of Nature'),
     ];
 
     return Scaffold(
@@ -137,8 +139,12 @@ class CourseDetailPage extends StatelessWidget {
     ];
 
     return Scaffold(
+      backgroundColor: Colors.grey,
       appBar: AppBar(
-        title: Text(course.name),
+        title: Text(
+          course.name,
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: const Color(0xFF28313B),
       ),
       body: ListView.builder(

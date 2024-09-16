@@ -97,7 +97,10 @@ class CourseDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Course Details'),
+        title: const Text(
+          'Course Details',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: const Color(0xFF28313B),
       ),
       body: Container(
@@ -150,8 +153,8 @@ class CourseDetailPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   const Text(
-                    '- Interactive and fun learning experience\n'
-                    '- Hands-on projects and assignments\n'
+                    '- Course Certified by Institution\n'
+                    '- 100% Safe and guarenteed learning\n'
                     '- Guidance from expert mentors\n'
                     '- Lifetime access to course material',
                     style: TextStyle(
