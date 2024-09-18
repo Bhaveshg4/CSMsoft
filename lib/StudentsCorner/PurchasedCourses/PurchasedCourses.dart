@@ -1,29 +1,30 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/StudentsCorner/PurchasedCourses/SupportPurchaseCourses.dart';
 
 // Define the PurchasedCourse class
 class PurchasedCourse {
+  final String id; // Firestore document ID
   final String name;
   final String description;
 
-  PurchasedCourse(this.name, this.description);
+  PurchasedCourse(this.id, this.name, this.description);
 }
 
 // Define the LatestCourse widget
 class LatestCourse extends StatelessWidget {
   const LatestCourse({super.key});
 
+  Future<List<PurchasedCourse>> fetchCourses() async {
+    // Fetch courses from Firestore
+    QuerySnapshot snapshot =
+        await FirebaseFirestore.instance.collection('purchased_courses').get();
+    return snapshot.docs.map((doc) {
+      return PurchasedCourse(doc.id, doc['name'], doc['description']);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Dummy data for purchased courses
-    final courses = [
-      PurchasedCourse(
-          'Learn संस्कृत', 'Master sanskrit language and know Indian Culture.'),
-      PurchasedCourse('Learn हिंदी', 'Know your mothertongue more accurately.'),
-      PurchasedCourse(
-          'Learn गणित', 'Learn maths to understand marvels of Nature'),
-    ];
-
     return Scaffold(
       backgroundColor: Colors.grey,
       appBar: AppBar(
@@ -33,11 +34,23 @@ class LatestCourse extends StatelessWidget {
         ),
         backgroundColor: const Color(0xFF28313B),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: courses.length,
-        itemBuilder: (context, index) {
-          return CourseCard(course: courses[index]);
+      body: FutureBuilder<List<PurchasedCourse>>(
+        future: fetchCourses(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return const Center(child: Text("Error fetching courses"));
+          }
+          final courses = snapshot.data ?? [];
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: courses.length,
+            itemBuilder: (context, index) {
+              return CourseCard(course: courses[index]);
+            },
+          );
         },
       ),
     );
@@ -128,31 +141,81 @@ class CourseDetailPage extends StatelessWidget {
 
   const CourseDetailPage({required this.course, Key? key}) : super(key: key);
 
+  Future<List<Map<String, dynamic>>> fetchModules(String courseId) async {
+    // Fetch modules for a specific course from Firestore
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('purchased_courses')
+        .doc(courseId)
+        .collection('modules')
+        .get();
+    return snapshot.docs.map((doc) {
+      return {
+        'id': doc['id'],
+        'name': doc['name'],
+      };
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Dummy data for course modules
-    final modules = [
-      {'id': 1, 'name': 'Introduction to ${course.name}'},
-      {'id': 2, 'name': 'Module 1: Getting Started'},
-      {'id': 3, 'name': 'Module 2: Advanced Concepts'},
-      {'id': 4, 'name': 'Final Test'},
-    ];
-
     return Scaffold(
       backgroundColor: Colors.grey,
       appBar: AppBar(
         title: Text(
           course.name,
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: const Color(0xFF28313B),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: modules.length,
-        itemBuilder: (context, index) {
-          return ModuleCard(module: modules[index]);
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: fetchModules(course.id),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return const Center(child: Text("Error fetching modules"));
+          }
+          final modules = snapshot.data ?? [];
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: modules.length,
+            itemBuilder: (context, index) {
+              return ModuleCard(module: modules[index]);
+            },
+          );
         },
+      ),
+    );
+  }
+}
+
+// Define the ModuleCard widget
+class ModuleCard extends StatelessWidget {
+  final Map<String, dynamic> module;
+
+  const ModuleCard({required this.module, Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 5,
+            spreadRadius: 2,
+            offset: const Offset(2, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        module['name'],
+        style: const TextStyle(fontSize: 18),
       ),
     );
   }
