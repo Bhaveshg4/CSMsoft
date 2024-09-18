@@ -38,12 +38,12 @@ class _UploadCoursePageState extends State<UploadCoursePage>
       _formKey.currentState!.save();
 
       // Create a course document in Firestore
-      await FirebaseFirestore.instance.collection('courses').add({
+      await FirebaseFirestore.instance.collection('UploadNewcourses').add({
         'title': courseName,
         'description': courseDescription,
         'duration': courseDuration,
         'price': int.parse(coursePrice), // Assuming the price is an integer
-        'rating': 5, // Default rating or set a logic to allow user input
+        'rating': 1, // Default rating or set a logic to allow user input
       });
 
       // Show success animation and navigate back

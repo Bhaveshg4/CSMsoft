@@ -39,8 +39,6 @@ dependencies:
   animations: ^2.0.11
   firebase_core: 
   cloud_firestore: 
-  http: ^1.2.2
-  upi_india: ^3.0.1
 
 dev_dependencies:
   flutter_test:

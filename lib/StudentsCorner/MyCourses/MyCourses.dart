@@ -26,7 +26,9 @@ class MyCoursesPage extends StatelessWidget {
         ),
         padding: const EdgeInsets.all(16.0),
         child: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('courses').snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('UploadNewcourses')
+              .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());

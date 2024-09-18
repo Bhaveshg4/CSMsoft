@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/AuthorityCorner/FeatureContainerAuthortityHome.dart';
-import 'package:flutter_application_1/StudentsCorner/NewCourse/NewCourse.dart';
+import 'package:flutter_application_1/AuthorityCorner/NewCourse/NewCourse.dart';
 import 'package:flutter_application_1/AuthorityCorner/UploadQuiz.dart';
 
 class AuthorityHomePage extends StatelessWidget {

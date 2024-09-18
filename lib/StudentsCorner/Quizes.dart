@@ -15,36 +15,82 @@ class _QuizPageState extends State<MyQuizzesPage> {
   String? _selectedCourse;
   bool _isQuizStarted = false;
 
+  List<Map<String, dynamic>> _courses = [];
   List<Map<String, dynamic>> _questions = [];
-  List<Map<String, dynamic>> _answers = [];
   final Map<int, String> _selectedAnswers = {};
 
   bool get _isQuizComplete => _selectedAnswers.length == _questions.length;
 
-  // Fetch questions for the selected course (limit to 5 questions)
+  @override
+  void initState() {
+    super.initState();
+    _fetchCourses();
+  }
+
+  Future<void> _fetchCourses() async {
+    try {
+      final courseCollection = FirebaseFirestore.instance.collection('courses');
+      final querySnapshot = await courseCollection.get();
+      final courses = querySnapshot.docs.map((doc) {
+        return {
+          'courseId': doc.id,
+          'courseName': doc['courseName'],
+          'description': doc['description'],
+          'rating': doc['rating'],
+          'duration': doc['duration']
+        };
+      }).toList();
+      setState(() {
+        _courses = courses;
+      });
+    } catch (e) {
+      print('Error fetching courses: $e');
+    }
+  }
+
+  Future<void> _fetchQuestions(String courseId) async {
+    try {
+      final questionCollection = FirebaseFirestore.instance
+          .collection('courses')
+          .doc(courseId)
+          .collection('questions');
+      final querySnapshot = await questionCollection.get();
+      final questions = querySnapshot.docs.map((doc) {
+        return {
+          'question': doc['questionText'],
+          'options': [
+            doc['options']['option1'],
+            doc['options']['option2'],
+            doc['options']['option3'],
+            doc['options']['option4'],
+          ],
+          'correctOption': doc['correctOption'],
+        };
+      }).toList();
+      setState(() {
+        _questions = questions;
+      });
+    } catch (e) {
+      print('Error fetching questions: $e');
+    }
+  }
+
   void _startQuiz() async {
     if (_selectedCourse != null) {
-      setState(() {
-        _isQuizStarted = true;
-      });
-
-      // Fetch exactly 5 questions for the selected course from Firestore
-      final courseQuestions = await FirebaseFirestore.instance
-          .collection('courses')
-          .doc(_selectedCourse)
-          .collection('questions')
-          .limit(5)
-          .get();
-
-      setState(() {
-        _questions = courseQuestions.docs.map((doc) => doc.data()).toList();
-        _answers = _questions.map((question) {
-          return {
-            'correct': question['correct'],
-            'options': question['options']
-          };
-        }).toList();
-      });
+      final selectedCourseId = _courses.firstWhere(
+          (course) => course['courseName'] == _selectedCourse)['courseId'];
+      await _fetchQuestions(selectedCourseId);
+      if (_questions.isNotEmpty) {
+        setState(() {
+          _isQuizStarted = true;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("No questions available for this course."),
+          ),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -54,7 +100,6 @@ class _QuizPageState extends State<MyQuizzesPage> {
     }
   }
 
-  // Navigate to next question
   void _nextPage() {
     if (_currentQuestionIndex < _questions.length - 1) {
       setState(() {
@@ -68,7 +113,6 @@ class _QuizPageState extends State<MyQuizzesPage> {
     }
   }
 
-  // Navigate to previous question
   void _previousPage() {
     if (_currentQuestionIndex > 0) {
       setState(() {
@@ -82,58 +126,57 @@ class _QuizPageState extends State<MyQuizzesPage> {
     }
   }
 
-  // Store selected answer for each question
   void _selectAnswer(int questionIndex, String answer) {
     setState(() {
       _selectedAnswers[questionIndex] = answer;
     });
   }
 
-  // Complete quiz and submit data to Firebase
-  void _completeQuiz() async {
-    final selectedCourse = _selectedCourse; // Store the selected course name
-
-    // Prepare the results to submit to Firebase
-    List<Map<String, dynamic>> quizResults = [];
-    for (int i = 0; i < _questions.length; i++) {
-      quizResults.add({
-        'question': _questions[i]['question'],
-        'options': _answers[i]['options'],
-        'selectedAnswer': _selectedAnswers[i],
-        'correctAnswer': _answers[i]['correct'],
-      });
-    }
-
-    // Save quiz results to Firestore under 'quizResults' collection
-    await FirebaseFirestore.instance.collection('quizResults').add({
-      'course': selectedCourse,
-      'results': quizResults,
-      'submittedAt': Timestamp.now(),
-    });
-
-    // Show completion message and navigate back to StudentsHomePage
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Congratulations!"),
-          content: const Text(
-              "Completed test successfully, we will be back soon with your results!"),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                Navigator.push(
+  void _completeQuiz() {
+    if (!_isQuizComplete) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Incomplete Test"),
+            content: const Text("Please solve the whole test."),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text("OK"),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Congratulations!"),
+            content: const Text(
+                "Test completed successfully! We will email you the results."),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => StudentsHomePage()));
-              },
-              child: const Text("OK"),
-            ),
-          ],
-        );
-      },
-    );
+                      builder: (context) => const StudentsHomePage(),
+                    ),
+                  );
+                },
+                child: const Text("OK"),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   @override
@@ -142,7 +185,7 @@ class _QuizPageState extends State<MyQuizzesPage> {
       appBar: AppBar(
         title: Text(
           _isQuizStarted ? "Quiz on $_selectedCourse" : "Select a Course",
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: const Color(0xFF28313B),
       ),
@@ -160,77 +203,67 @@ class _QuizPageState extends State<MyQuizzesPage> {
   }
 
   Widget _buildCourseSelectionPage() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('courses').snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return const Center(child: Text('Error loading courses.'));
-        } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text('No courses available.'));
-        }
-
-        final courses = snapshot.data!.docs.map((doc) => doc.id).toList();
-
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Select a course to start the quiz:",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 20),
-              for (var course in courses)
-                ListTile(
-                  title: Text(
-                    course,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  leading: Radio<String>(
-                    value: course,
-                    groupValue: _selectedCourse,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCourse = value;
-                      });
-                    },
-                  ),
-                ),
-              const SizedBox(height: 30),
-              Center(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF485461),
-                  ),
-                  onPressed: _startQuiz,
-                  child: const Text(
-                    "Start Quiz",
-                    style: TextStyle(fontSize: 18, color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Select a course to start the quiz:",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
-        );
-      },
+          const SizedBox(height: 20),
+          for (var course in _courses)
+            ListTile(
+              title: Text(
+                course['courseName'],
+                style: const TextStyle(color: Colors.white),
+              ),
+              subtitle: Text(
+                "Rating: ${course['rating']} | Duration: ${course['duration']}",
+                style: const TextStyle(color: Colors.white70),
+              ),
+              leading: Radio<String>(
+                value: course['courseName'],
+                groupValue: _selectedCourse,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCourse = value;
+                  });
+                },
+              ),
+            ),
+          const SizedBox(height: 30),
+          Center(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF485461),
+              ),
+              onPressed: _startQuiz,
+              child: const Text(
+                "Start Quiz",
+                style: TextStyle(fontSize: 18, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildQuizPage() {
     return Column(
       children: [
-        LinearProgressIndicator(
-          value: (_currentQuestionIndex + 1) / _questions.length,
-          backgroundColor: Colors.grey[300],
-          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF485461)),
-        ),
+        if (_questions.isNotEmpty)
+          LinearProgressIndicator(
+            value: (_currentQuestionIndex + 1) / _questions.length,
+            backgroundColor: Colors.grey[300],
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF485461)),
+          ),
         Expanded(
           child: PageView.builder(
             controller: _pageController,
@@ -258,16 +291,15 @@ class _QuizPageState extends State<MyQuizzesPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF485461),
                 ),
-                onPressed: _isQuizComplete ? _completeQuiz : _nextPage,
-                child: _isQuizComplete
-                    ? const Icon(
-                        Icons.check_circle,
-                        color: Colors.white,
-                      )
-                    : const Icon(
-                        Icons.arrow_forward,
-                        color: Colors.white,
-                      ),
+                onPressed: _currentQuestionIndex < _questions.length - 1
+                    ? _nextPage
+                    : _completeQuiz,
+                child: Text(
+                  _currentQuestionIndex < _questions.length - 1
+                      ? "Next"
+                      : "Submit",
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -276,10 +308,9 @@ class _QuizPageState extends State<MyQuizzesPage> {
     );
   }
 
-  Widget _buildQuestionPage(int index) {
-    final question = _questions[index]['question'] as String;
-    final answers = _answers[index]['options'] as List<String>;
-    final selectedAnswer = _selectedAnswers[index];
+  Widget _buildQuestionPage(int questionIndex) {
+    final question = _questions[questionIndex];
+    final selectedAnswer = _selectedAnswers[questionIndex];
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -287,27 +318,30 @@ class _QuizPageState extends State<MyQuizzesPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            question,
+            "Question ${questionIndex + 1}/${_questions.length}",
             style: const TextStyle(
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
           const SizedBox(height: 20),
-          for (var answer in answers)
+          Text(
+            question['question'],
+            style: const TextStyle(fontSize: 18, color: Colors.white70),
+          ),
+          const SizedBox(height: 20),
+          for (var option in question['options'])
             ListTile(
               title: Text(
-                answer,
+                option,
                 style: const TextStyle(color: Colors.white),
               ),
               leading: Radio<String>(
-                value: answer,
+                value: option,
                 groupValue: selectedAnswer,
                 onChanged: (value) {
-                  if (value != null) {
-                    _selectAnswer(index, value);
-                  }
+                  _selectAnswer(questionIndex, value!);
                 },
               ),
             ),

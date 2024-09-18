@@ -35,7 +35,7 @@ class _UploadQuizState extends State<UploadQuiz> {
     try {
       // Create a reference to the course collection
       final courseRef = FirebaseFirestore.instance
-          .collection('courses')
+          .collection('UploadedQuiz')
           .doc(_courseNameController.text);
 
       // Add questions to the course's 'questions' sub-collection
